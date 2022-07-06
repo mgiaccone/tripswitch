@@ -11,12 +11,6 @@ type Retrier[T any] interface {
 	Do(fn ProtectedFunc[T]) (T, error)
 }
 
-func wrapWithRetrier[T any](r Retrier[T], fn ProtectedFunc[T]) ProtectedFunc[T] {
-	return func() (T, error) {
-		return r.Do(fn)
-	}
-}
-
 // NopRetrier returns a new instance of a pass-through retrier.
 func NopRetrier[T any]() Retrier[T] {
 	return &nopRetrier[T]{}

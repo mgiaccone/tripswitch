@@ -1,6 +1,7 @@
 GO = $(shell which go)
-GOTEST = $(shell which gotest)
+GODOC = $(shell which godoc)
 GOLINT = $(shell which golangci-lint)
+GOTEST = $(shell which gotest)
 TARGET_DIR = $(shell pwd)/target
 
 ifeq ($(GOTEST),)
@@ -11,8 +12,15 @@ endif
 clean:
 	@rm -Rf $(TARGET_DIR)
 
+.PHONY: configure
+configure:
+	@$(GO) install github.com/rakyll/gotest@latest
+	@$(GO) install golang.org/x/tools/cmd/godoc@latest
+
 .PHONY: godoc
 godoc:
+	@echo Godoc: "http://localhost:6060/pkg/github.com/mgiaccone/tripswitch\n"
+	@$(GODOC) -http=:6060
 
 .PHONY: lint
 lint:
@@ -31,3 +39,4 @@ test: clean target
 		-v ./...
 	@$(GO) tool cover -func=$(TARGET_DIR)/reports/coverage.out
 	@$(GO) tool cover -html=$(TARGET_DIR)/reports/coverage.out -o $(TARGET_DIR)/reports/coverage.html
+	@echo "\nCoverage report: file://$(PWD)/target/reports/coverage.html"

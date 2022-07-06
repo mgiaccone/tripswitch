@@ -99,7 +99,7 @@ func NewCircuitBreakerWithRetrier[T any](retrier Retrier[T], opts ...CircuitOpti
 	return &cb
 }
 
-// Do executes a function managed by the named circuit breaker.
+// Do executes a function managed by the circuit breaker.
 func (cb *CircuitBreaker[T]) Do(fn ProtectedFunc[T]) (T, error) {
 	var zeroValue T
 
@@ -124,7 +124,7 @@ func (cb *CircuitBreaker[T]) Do(fn ProtectedFunc[T]) (T, error) {
 	return execFn()
 }
 
-// State returns the state of the circuit.
+// State returns the current state of the circuit breaker.
 func (cb *CircuitBreaker[T]) State() CircuitState {
 	return CircuitState(atomic.LoadInt32((*int32)(&cb.state)))
 }
@@ -221,4 +221,10 @@ func (cb *CircuitBreaker[T]) recoverCircuit() {
 		cb.notifyStateChangeFn(CircuitOpen, CircuitHalfOpen)
 	}
 	// TODO: update stats
+}
+
+func wrapWithRetrier[T any](r Retrier[T], fn ProtectedFunc[T]) ProtectedFunc[T] {
+	return func() (T, error) {
+		return r.Do(fn)
+	}
 }
