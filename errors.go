@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	// ErrCircuitOpen
+	// ErrCircuitOpen represents an open circuit error.
 	ErrCircuitOpen = errors.New("circuit open")
 )
 

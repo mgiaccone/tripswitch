@@ -103,6 +103,16 @@ func NewCircuitBreakerWithRetrier[T any](retrier Retrier[T], opts ...CircuitOpti
 func (cb *CircuitBreaker[T]) Do(fn ProtectedFunc[T]) (T, error) {
 	var zeroValue T
 
+	// TODO(matteo): add panic recovery
+	/*
+		defer func() {
+			e := recover()
+			if e != nil {
+				panic(e)
+			}
+		}()
+	*/
+
 	// wrap function with the circuit breaker
 	execFn := func() (T, error) {
 		// fails immediately if the circuit state is CircuitOpen

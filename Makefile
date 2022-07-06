@@ -13,7 +13,7 @@ clean:
 	@rm -Rf $(TARGET_DIR)
 
 .PHONY: configure
-configure:
+configure: install-hooks
 	@$(GO) install github.com/rakyll/gotest@latest
 	@$(GO) install golang.org/x/tools/cmd/godoc@latest
 
@@ -22,6 +22,10 @@ godoc:
 	@echo Godoc: "http://localhost:6060/pkg/github.com/mgiaccone/tripswitch\n"
 	@$(GODOC) -http=:6060
 
+.PHONY: install-hooks
+install-hooks:
+	@ln -s $(PWD)/scripts/pre-commit .git/hooks/pre-commit
+
 .PHONY: lint
 lint:
 	@$(GOLINT) run ./...
@@ -29,6 +33,9 @@ lint:
 .PHONY: target
 target:
 	@mkdir -p $(TARGET_DIR)/reports
+
+.PHONY: qa
+qa: lint test
 
 .PHONY: test
 test: clean target
