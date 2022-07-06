@@ -1,0 +1,78 @@
+run:
+  concurrency: 4
+  go: '1.18'
+  modules-download-mode: readonly
+
+output:
+  sort-results: true
+
+linters-settings:
+  cyclop:
+    skip-tests: true
+
+errcheck:
+    check-type-assertions: true
+    check-blank: true
+
+gocritic:
+  disabled-checks:
+    - newDeref
+
+gocognit:
+  min-complexity: 10
+
+godot:
+    exclude:
+      - "^fixme:"
+      - "^todo:"
+    capital: true
+
+gosec:
+    exclude-generated: true
+
+revive:
+    ignore-generated-header: true
+    enable-all-rules: true
+
+linters:
+  disable-all: true
+  enable:
+    - asciicheck
+    - bidichk
+    - cyclop
+    - deadcode
+    - dogsled
+    - durationcheck
+    - errcheck
+    - errname
+    - errorlint
+    - exportloopref
+    - gochecknoinits
+    - gocognit
+    - gocritic
+#    - godox
+    - godot
+    - gofmt
+    - gomnd
+    - gosec
+    - gosimple
+    - govet
+    - ifshort
+    - ineffassign
+    - nestif
+    - prealloc
+    - revive
+    - staticcheck
+    - typecheck
+    - unconvert
+    - unused
+    - varcheck
+    - whitespace
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+        - godox
+        - gosec

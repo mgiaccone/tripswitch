@@ -1,0 +1,24 @@
+name: Release
+on:
+  push:
+    branches:
+      - main
+
+env:
+  GO_VERSION: 1.18.x
+  GOLANGCI_LINT_VERSION: v1.46.2
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    if: ${{ github.ref == 'refs/heads/main' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: '0'
+      - uses: anothrNick/github-tag-action@1.36.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_BRANCHES: main
+          WITH_V: true

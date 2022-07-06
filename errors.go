@@ -9,7 +9,6 @@ var (
 	ErrCircuitOpen     = errors.New("circuit open")
 	ErrCircuitConflict = errors.New("circuit already exists")
 	ErrNameRequired    = errors.New("circuit name required")
-	ErrRetrierRequired = errors.New("retrier required")
 )
 
 type RetriableError struct {

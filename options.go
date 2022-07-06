@@ -1,84 +1,45 @@
 package tripswitch
 
 import (
-	"fmt"
-	"strings"
 	"time"
 )
 
-// CircuitBreakerOption represents a functional option applicable to the circuit breaker.
-type CircuitBreakerOption func(cfg *config) error
+// CircuitOption represents a functional option applicable to a circuit.
+type CircuitOption func(cfg *circuitConfig)
 
-type config struct {
-	circuits                map[string]*circuit
-	defaultFailThreshold    int32
-	defaultSuccessThreshold int32
-	defaultWaitInterval     time.Duration
-	stateChangeFunc         StateChangeFunc
+type circuitConfig struct {
+	failThreshold    int32
+	stateChangeFunc  StateChangeFunc
+	successThreshold int32
+	waitInterval     time.Duration
 }
 
-func (c *config) apply(opts ...CircuitBreakerOption) error {
+func (c *circuitConfig) applyOpts(opts ...CircuitOption) {
 	for _, apply := range opts {
-		if err := apply(c); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// WithCircuit set custom options for a named circuit.
-func WithCircuit(name string, failThreshold, successThreshold int, waitInterval time.Duration) CircuitBreakerOption {
-	return func(cfg *config) error {
-		if name = strings.TrimSpace(name); name == "" {
-			return ErrNameRequired
-		}
-
-		if cfg.circuits == nil {
-			cfg.circuits = make(map[string]*circuit)
-		}
-
-		c, exists := cfg.circuits[name]
-		if exists {
-			return fmt.Errorf("%q: %w", name, ErrCircuitConflict)
-		}
-
-		c = &circuit{
-			name:             name,
-			state:            Closed,
-			failThreshold:    int32(failThreshold),
-			successThreshold: int32(successThreshold),
-			waitInterval:     waitInterval,
-		}
-
-		cfg.circuits[name] = c
-		return nil
+		apply(c)
 	}
 }
 
-func WithFailThreshold(threshold int) CircuitBreakerOption {
-	return func(cfg *config) error {
-		cfg.defaultFailThreshold = int32(threshold)
-		return nil
+func WithFailThreshold(threshold int) CircuitOption {
+	return func(cfg *circuitConfig) {
+		cfg.failThreshold = int32(threshold)
 	}
 }
 
-func WithSuccessThreshold(threshold int) CircuitBreakerOption {
-	return func(cfg *config) error {
-		cfg.defaultSuccessThreshold = int32(threshold)
-		return nil
-	}
-}
-
-func WithWaitInterval(interval time.Duration) CircuitBreakerOption {
-	return func(cfg *config) error {
-		cfg.defaultWaitInterval = interval
-		return nil
-	}
-}
-
-func WithStateChangeFunc(fn StateChangeFunc) CircuitBreakerOption {
-	return func(cfg *config) error {
+func WithStateChangeFunc(fn StateChangeFunc) CircuitOption {
+	return func(cfg *circuitConfig) {
 		cfg.stateChangeFunc = fn
-		return nil
+	}
+}
+
+func WithSuccessThreshold(threshold int) CircuitOption {
+	return func(cfg *circuitConfig) {
+		cfg.successThreshold = int32(threshold)
+	}
+}
+
+func WithWaitInterval(interval time.Duration) CircuitOption {
+	return func(cfg *circuitConfig) {
+		cfg.waitInterval = interval
 	}
 }
