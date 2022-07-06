@@ -33,6 +33,10 @@ func WithCircuit(name string, failThreshold, successThreshold int, waitInterval 
 			return ErrNameRequired
 		}
 
+		if cfg.circuits == nil {
+			cfg.circuits = make(map[string]*circuit)
+		}
+
 		c, exists := cfg.circuits[name]
 		if exists {
 			return fmt.Errorf("%q: %w", name, ErrCircuitConflict)

@@ -1,7 +1,6 @@
 package tripswitch
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"sync"
@@ -50,7 +49,12 @@ type circuit struct {
 	waitInterval     time.Duration
 }
 
-type stateChange struct {
+type recoverCircuitEvent struct {
+	circuit  *circuit
+	notifyFn notifyStateChangeFunc
+}
+
+type stateChangeEvent struct {
 	name     string
 	oldState CircuitState
 	newState CircuitState
@@ -58,7 +62,7 @@ type stateChange struct {
 
 type notifyStateChangeFunc func(name string, oldState, newState CircuitState)
 
-type restoreFunc func(c *circuit, notifyFn notifyStateChangeFunc)
+type recoverFunc func(c *circuit, notifyFn notifyStateChangeFunc)
 
 // ProtectedFunc represents the function to be protected by the circuit breaker.
 type ProtectedFunc[T any] func() (T, error)
@@ -73,8 +77,9 @@ type CircuitBreaker[T any] struct {
 	defaultFailThreshold    int32
 	defaultSuccessThreshold int32
 	defaultWaitInterval     time.Duration
+	notifyStateChangeCh     chan stateChangeEvent
+	recoverCircuitCh        chan recoverCircuitEvent
 	retrier                 Retrier[T]
-	stateChangeCh           chan stateChange
 	stateChangeFunc         StateChangeFunc
 }
 
@@ -108,12 +113,13 @@ func NewCircuitBreaker[T any](retrier Retrier[T], opts ...CircuitBreakerOption) 
 		defaultFailThreshold:    cfg.defaultFailThreshold,
 		defaultSuccessThreshold: cfg.defaultSuccessThreshold,
 		defaultWaitInterval:     cfg.defaultWaitInterval,
+		notifyStateChangeCh:     make(chan stateChangeEvent),
+		recoverCircuitCh:        make(chan recoverCircuitEvent),
 		retrier:                 retrier,
-		stateChangeCh:           make(chan stateChange, 100),
 		stateChangeFunc:         cfg.stateChangeFunc,
 	}
 
-	go cb.monitor(context.Background())
+	go cb.processEvents()
 
 	return &cb, nil
 }
@@ -135,7 +141,7 @@ func (cb *CircuitBreaker[T]) Do(name string, fn ProtectedFunc[T]) (T, error) {
 
 		res, err := wrapWithRetrier(cb.retrier, fn)()
 		if err != nil {
-			recordFailure(c, restore, cb.notifyStateChange)
+			recordFailure(c, cb.scheduleCircuitRecovery, cb.notifyStateChange)
 			return res, err
 		}
 
@@ -163,16 +169,25 @@ func (cb *CircuitBreaker[T]) State(name string) CircuitState {
 	return CircuitState(atomic.LoadInt32((*int32)(&c.state)))
 }
 
-func (cb *CircuitBreaker[T]) monitor(ctx context.Context) {
+func (cb *CircuitBreaker[T]) processEvents() {
 	for {
 		select {
-		case <-ctx.Done():
-			return
-		case msg := <-cb.stateChangeCh:
+		case msg, ok := <-cb.notifyStateChangeCh:
+			if !ok {
+				// TODO: log error instead of panic
+				panic("error reading from notifyStateChange")
+			}
+
 			if cb.stateChangeFunc == nil {
-				return
+				continue
 			}
 			cb.stateChangeFunc(msg.name, msg.oldState, msg.newState)
+		case msg, ok := <-cb.recoverCircuitCh:
+			if !ok {
+				// TODO: log error instead of panic
+				panic("error reading from recoverCircuit channel")
+			}
+			go recoverCircuit(msg.circuit, msg.notifyFn)
 		}
 	}
 }
@@ -204,17 +219,24 @@ func (cb *CircuitBreaker[T]) getOrCreateCircuit(name string, notifyFn notifyStat
 }
 
 func (cb *CircuitBreaker[T]) notifyStateChange(name string, oldState, newState CircuitState) {
-	cb.stateChangeCh <- stateChange{
+	cb.notifyStateChangeCh <- stateChangeEvent{
 		name:     name,
 		oldState: oldState,
 		newState: newState,
 	}
 }
 
+func (cb *CircuitBreaker[T]) scheduleCircuitRecovery(c *circuit, notifyFn notifyStateChangeFunc) {
+	cb.recoverCircuitCh <- recoverCircuitEvent{
+		circuit:  c,
+		notifyFn: notifyFn,
+	}
+}
+
 // recordFailure handles a failed function execution.
 // If the current state is Closed and the failure counter reached the threshold, it will set the circuit breaker state to Open.
 // Otherwise, it resets the success counter and sets the state to Open when the current state is HalfOpen.
-func recordFailure(c *circuit, restoreFn restoreFunc, notifyFn notifyStateChangeFunc) {
+func recordFailure(c *circuit, recoverFn recoverFunc, notifyFn notifyStateChangeFunc) {
 	switch CircuitState(atomic.LoadInt32((*int32)(&c.state))) {
 	case Open:
 		// TODO: update stats
@@ -226,10 +248,8 @@ func recordFailure(c *circuit, restoreFn restoreFunc, notifyFn notifyStateChange
 
 		if atomic.CompareAndSwapInt32((*int32)(&c.state), int32(Closed), int32(Open)) {
 			notifyFn(c.name, Closed, Open)
+			recoverFn(c, notifyFn)
 		}
-
-		// schedule a restore attempt
-		go restoreFn(c, notifyFn)
 	case HalfOpen:
 		// TODO: update stats
 		if atomic.CompareAndSwapInt32((*int32)(&c.state), int32(HalfOpen), int32(Open)) {
@@ -237,9 +257,7 @@ func recordFailure(c *circuit, restoreFn restoreFunc, notifyFn notifyStateChange
 			atomic.StoreInt32(&c.successCount, 0)
 
 			notifyFn(c.name, HalfOpen, Open)
-
-			// schedule a restore attempt
-			go restoreFn(c, notifyFn)
+			recoverFn(c, notifyFn)
 		}
 	default:
 		// ignore other states
@@ -272,9 +290,9 @@ func recordSuccess(c *circuit, notifyFn notifyStateChangeFunc) {
 	}
 }
 
-// restore schedules a recovery attempt after the configured wait interval.
+// recoverCircuit waits for the configured interval before attempting to reopen the circuit.
 // If the current state is Open, it sets a timer to setting the state to HalfOpen.
-func restore(c *circuit, notifyFn notifyStateChangeFunc) {
+func recoverCircuit(c *circuit, notifyFn notifyStateChangeFunc) {
 	if CircuitState(atomic.LoadInt32((*int32)(&c.state))) != Open {
 		return
 	}

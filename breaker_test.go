@@ -149,7 +149,7 @@ func TestCircuitBreaker_Do(t *testing.T) {
 		return testStep{delay: delay, err: err, wantErr: wantErr, wantState: wantState}
 	}
 
-	testErr := fmt.Errorf("err_1")
+	testErr := fmt.Errorf("test error")
 
 	type args struct {
 		name string
@@ -164,7 +164,7 @@ func TestCircuitBreaker_Do(t *testing.T) {
 			name: "fails with missing name",
 			args: args{name: ""},
 			steps: []testStep{
-				buildStep(0, ErrNameRequired, ErrNameRequired, Closed),
+				buildStep(0, ErrNameRequired, ErrNameRequired, Unknown),
 			},
 		},
 		{
@@ -198,19 +198,19 @@ func TestCircuitBreaker_Do(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			startTime := time.Now()
-			currentState := Closed
-
-			stateFn := func(name string, oldState, newState CircuitState) {
-				currentState = newState
-				execTime := time.Now().Sub(startTime).Milliseconds()
-				t.Logf("state change [time = %dms, oldState = %s, oldState = %s]", execTime, oldState, newState)
-			}
+			// currentState := Closed
+			//
+			// stateFn := func(name string, oldState, newState CircuitState) {
+			// 	currentState = newState
+			// 	execTime := time.Now().Sub(startTime).Milliseconds()
+			// 	t.Logf("state change [time = %dms, oldState = %s, oldState = %s]", execTime, oldState, newState)
+			// }
 
 			opts := []CircuitBreakerOption{
 				WithFailThreshold(2),
 				WithSuccessThreshold(2),
 				WithWaitInterval(500 * time.Millisecond),
-				WithStateChangeFunc(stateFn),
+				// WithStateChangeFunc(stateFn),
 			}
 			cb := MustCircuitBreaker[int](NopRetrier[int](), opts...)
 
@@ -236,6 +236,7 @@ func TestCircuitBreaker_Do(t *testing.T) {
 					want = 0
 				}
 
+				currentState := cb.State(tt.args.name)
 				require.Equal(t, s.wantState, currentState,
 					"Do(): step = %d, time = %dms, state = %v, wantState = %v, circuit = %+v", i, execTime, currentState, s.wantState, cb.circuits[tt.args.name])
 				require.Equal(t, want, got, "Do(): step = %d, time = %dms, got = %v, want = %v", i, execTime, got, i)
@@ -418,29 +419,36 @@ func TestCircuitBreaker_notifyStateChange(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			cb := &CircuitBreaker[any]{}
-
 			callCounter := 0
-			callName := ""
-			callOldState := Unknown
-			callNewState := Unknown
+			stateCh := make(chan stateChangeEvent)
 
+			var opts []CircuitBreakerOption
 			if tt.setCallback {
-				cb.stateChangeFunc = func(name string, oldState, newState CircuitState) {
-					callCounter++
-					callName = name
-					callOldState = oldState
-					callNewState = newState
-				}
+				opts = append(opts, WithStateChangeFunc(func(name string, oldState, newState CircuitState) {
+					stateCh <- stateChangeEvent{
+						name:     name,
+						oldState: oldState,
+						newState: newState,
+					}
+				}))
 			}
 
+			cb := MustCircuitBreaker(NopRetrier[any](), opts...)
 			cb.notifyStateChange(tt.args.name, tt.args.oldState, tt.args.newState)
+
+			var s stateChangeEvent
+
+			if tt.setCallback {
+				s = <-stateCh
+				callCounter++
+			}
+
 			require.Equal(t, tt.wantCount, callCounter, "notifyStateChange(): got = %v, want = %v", callCounter, tt.wantCount)
 
 			if tt.setCallback {
-				require.Equal(t, tt.wantName, callName, "notifyStateChange() - name: got = %v, want = %v", callName, tt.wantName)
-				require.Equal(t, tt.wantOldState, callOldState, "notifyStateChange() - oldState: got = %v, want = %v", callOldState, tt.wantOldState)
-				require.Equal(t, tt.wantNewState, callNewState, "notifyStateChange() - newState: got = %v, want = %v", callNewState, tt.wantNewState)
+				require.Equal(t, tt.wantName, s.name, "notifyStateChange() - name: got = %v, want = %v", s.name, tt.wantName)
+				require.Equal(t, tt.wantOldState, s.oldState, "notifyStateChange() - oldState: got = %v, want = %v", s.oldState, tt.wantOldState)
+				require.Equal(t, tt.wantNewState, s.newState, "notifyStateChange() - newState: got = %v, want = %v", s.newState, tt.wantNewState)
 			}
 		})
 	}
@@ -694,7 +702,7 @@ func TestCircuitBreaker_recordSuccess(t *testing.T) {
 	}
 }
 
-func Test_restore(t *testing.T) {
+func Test_recoverCircuit(t *testing.T) {
 	type args struct {
 		c *circuit
 	}
@@ -705,7 +713,7 @@ func Test_restore(t *testing.T) {
 		wantNotifyCount int
 	}{
 		{
-			name: "restore applied to closed circuit",
+			name: "recover applied to closed circuit",
 			args: args{
 				c: &circuit{
 					name:             "test",
@@ -729,7 +737,7 @@ func Test_restore(t *testing.T) {
 			wantNotifyCount: 0,
 		},
 		{
-			name: "restore applied to half open circuit",
+			name: "recover applied to half open circuit",
 			args: args{
 				c: &circuit{
 					name:             "test",
@@ -753,7 +761,7 @@ func Test_restore(t *testing.T) {
 			wantNotifyCount: 0,
 		},
 		{
-			name: "restore applied to open circuit",
+			name: "recover applied to open circuit",
 			args: args{
 				c: &circuit{
 					name:             "test",
@@ -787,10 +795,10 @@ func Test_restore(t *testing.T) {
 			}
 
 			got := tt.args.c
-			restore(tt.args.c, notifyFn)
+			recoverCircuit(tt.args.c, notifyFn)
 
-			require.Equal(t, tt.wantNotifyCount, notifyCount, "restore() - notifyCount: got = %v, want = %v", notifyCount, tt.wantNotifyCount)
-			require.Equal(t, tt.wantCircuit, got, "restore() - circuit: got = %v, want = %v", got, tt.wantCircuit)
+			require.Equal(t, tt.wantNotifyCount, notifyCount, "recoverCircuit() - notifyCount: got = %v, want = %v", notifyCount, tt.wantNotifyCount)
+			require.Equal(t, tt.wantCircuit, got, "recoverCircuit() - circuit: got = %v, want = %v", got, tt.wantCircuit)
 		})
 	}
 }

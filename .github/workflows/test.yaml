@@ -44,7 +44,7 @@ jobs:
             ${{ runner.os }}-go-
       - name: run unit tests
         run: |
-          make ci-test
+          make test
 
 #  tag:
 #    name: Tag
