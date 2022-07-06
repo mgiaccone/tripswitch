@@ -1,6 +1,7 @@
 package tripswitch
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"sync"
@@ -49,6 +50,12 @@ type circuit struct {
 	waitInterval     time.Duration
 }
 
+type stateChange struct {
+	name     string
+	oldState CircuitState
+	newState CircuitState
+}
+
 type notifyStateChangeFunc func(name string, oldState, newState CircuitState)
 
 type restoreFunc func(c *circuit, notifyFn notifyStateChangeFunc)
@@ -67,6 +74,7 @@ type CircuitBreaker[T any] struct {
 	defaultSuccessThreshold int32
 	defaultWaitInterval     time.Duration
 	retrier                 Retrier[T]
+	stateChangeCh           chan stateChange
 	stateChangeFunc         StateChangeFunc
 }
 
@@ -91,7 +99,7 @@ func NewCircuitBreaker[T any](retrier Retrier[T], opts ...CircuitBreakerOption) 
 		defaultSuccessThreshold: _defaultSuccessThreshold,
 		defaultWaitInterval:     _defaultWaitInterval,
 	}
-	if err := cfg.applyOpts(opts...); err != nil {
+	if err := cfg.apply(opts...); err != nil {
 		return nil, fmt.Errorf("apply options: %w", err)
 	}
 
@@ -101,8 +109,11 @@ func NewCircuitBreaker[T any](retrier Retrier[T], opts ...CircuitBreakerOption) 
 		defaultSuccessThreshold: cfg.defaultSuccessThreshold,
 		defaultWaitInterval:     cfg.defaultWaitInterval,
 		retrier:                 retrier,
+		stateChangeCh:           make(chan stateChange, 100),
 		stateChangeFunc:         cfg.stateChangeFunc,
 	}
+
+	go cb.monitor(context.Background())
 
 	return &cb, nil
 }
@@ -152,6 +163,20 @@ func (cb *CircuitBreaker[T]) State(name string) CircuitState {
 	return CircuitState(atomic.LoadInt32((*int32)(&c.state)))
 }
 
+func (cb *CircuitBreaker[T]) monitor(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case msg := <-cb.stateChangeCh:
+			if cb.stateChangeFunc == nil {
+				return
+			}
+			cb.stateChangeFunc(msg.name, msg.oldState, msg.newState)
+		}
+	}
+}
+
 // getOrCreateCircuit returns a circuit. If the circuit does not exist,
 // it will create a new one with the default configuration.
 func (cb *CircuitBreaker[T]) getOrCreateCircuit(name string, notifyFn notifyStateChangeFunc) *circuit {
@@ -179,10 +204,11 @@ func (cb *CircuitBreaker[T]) getOrCreateCircuit(name string, notifyFn notifyStat
 }
 
 func (cb *CircuitBreaker[T]) notifyStateChange(name string, oldState, newState CircuitState) {
-	if cb.stateChangeFunc == nil {
-		return
+	cb.stateChangeCh <- stateChange{
+		name:     name,
+		oldState: oldState,
+		newState: newState,
 	}
-	cb.stateChangeFunc(name, oldState, newState)
 }
 
 // recordFailure handles a failed function execution.

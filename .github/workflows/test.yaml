@@ -1,0 +1,76 @@
+name: lint-test-tag
+on:
+  push:
+    branches:
+      - 'main'
+jobs:
+#  lint:
+#    runs-on: ubuntu-20.04
+#    steps:
+#      - name: checkout repository
+#        uses: actions/checkout@v2
+#      - name: configure environment
+#        uses: c-py/action-dotenv-to-setenv@v2
+#        with:
+#          env-file: .github/workflows/.env
+#      - name: setup go build environment
+#        uses: actions/setup-go@v2
+#        with:
+#          go-version: ${{ env.GO_VERSION }}
+#      - name: run golanci-lint
+#        uses: golangci/golangci-lint-action@v2
+#        with:
+#          version: ${{ env.GOLANGCI_LINT_VERSION }}
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v2
+      - name: configure environment
+        uses: c-py/action-dotenv-to-setenv@v2
+        with:
+          env-file: .github/workflows/.env
+      - name: setup go build environment
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: dependency cache
+        uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: run unit tests
+        run: |
+          make ci-test
+
+#  tag:
+#    name: Tag
+#    runs-on: ubuntu-latest
+#    needs: [lint, test]
+#    if: ${{ github.ref == 'refs/heads/main' }}
+#    steps:
+#      - uses: actions/checkout@v2
+#        with:
+#          fetch-depth: '0'
+#      - uses: anothrNick/github-tag-action@1.33.0
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#          RELEASE_BRANCHES: main
+#          WITH_V: true
+#
+#  notify:
+#    name: Notify
+#    runs-on: ubuntu-latest
+#    if: always()
+#    needs: [lint, test, tag]
+#    steps:
+#      - uses: Gamesight/slack-workflow-status@v1.0.1
+#        if: always()
+#        with:
+#          channel: ${{ secrets.SLACK_CHANNEL }}
+#          include_jobs: true
+#          repo_token: ${{ secrets.GITHUB_TOKEN }}
+#          slack_webhook_url: ${{ secrets.SLACK_WEBHOOK }}

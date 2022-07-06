@@ -17,7 +17,7 @@ type config struct {
 	stateChangeFunc         StateChangeFunc
 }
 
-func (c *config) applyOpts(opts ...CircuitBreakerOption) error {
+func (c *config) apply(opts ...CircuitBreakerOption) error {
 	for _, apply := range opts {
 		if err := apply(c); err != nil {
 			return err
@@ -26,15 +26,11 @@ func (c *config) applyOpts(opts ...CircuitBreakerOption) error {
 	return nil
 }
 
-// WithCircuit overrides sets custom options for a named circuit.
+// WithCircuit set custom options for a named circuit.
 func WithCircuit(name string, failThreshold, successThreshold int, waitInterval time.Duration) CircuitBreakerOption {
 	return func(cfg *config) error {
 		if name = strings.TrimSpace(name); name == "" {
 			return ErrNameRequired
-		}
-
-		if cfg.circuits == nil {
-			cfg.circuits = make(map[string]*circuit)
 		}
 
 		c, exists := cfg.circuits[name]

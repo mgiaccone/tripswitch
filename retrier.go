@@ -19,10 +19,12 @@ func wrapWithRetrier[T any](r Retrier[T], fn ProtectedFunc[T]) ProtectedFunc[T] 
 type nopRetrier[T any] struct {
 }
 
+// NopRetrier returns a new instance of a pass-through retrier.
 func NopRetrier[T any]() Retrier[T] {
 	return &nopRetrier[T]{}
 }
 
+// Do implement the ProtectedFunc interface.
 func (r *nopRetrier[T]) Do(fn ProtectedFunc[T]) (T, error) {
 	return fn()
 }
