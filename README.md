@@ -20,7 +20,7 @@ go get github.com/mgiaccone/tripswitch
 TODO: add quick start code sample
 ```
 
-The complete documentation for the circuit breaker can be found [here][circuitbreaker_docs_url]
+The complete documentation for the circuit breaker can be found [here](docs/circuitbreaker.md).
 
 ## Retrier
 
@@ -30,16 +30,12 @@ The complete documentation for the circuit breaker can be found [here][circuitbr
 TODO: add quick start code sample
 ```
 
-The complete documentation for the retrier can be found [here][retrier_docs_url].
+The complete documentation for the retrier can be found [here](docs/retrier.md).
 
 ## License
 
 The MIT License (MIT)
 
-See [LICENSE][license_url] for details.
-
+See [LICENSE](LICENSE) for details.
 
 [repo_url]: https://github.com/mgiaccone/tripswitch
-[license_url]:(LICENSE)
-[circuitbreaker_docs_url]:(docs/circuitbreaker.md)
-[retrier_docs_url]:(docs/retrier.md)
