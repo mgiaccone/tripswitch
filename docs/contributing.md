@@ -56,10 +56,10 @@ The **type** must be one of:
 
 | Type    | When to use                                                             | Outcome                                 |
 |---------|-------------------------------------------------------------------------|-----------------------------------------|
-| chore   | Clean the test reports directory                                        | No release                              |
-| doc     | Clean the test reports directory                                        | No release                              |
-| fix     | Configure tools and git hooks                                           | Release with **patch** version increase |
-| feat    | Start a local Godoc server                                              | Release with **minor** version increase |
+| chore   | A tedious task that does not affect the code or the documentation       | No release                              |
+| doc     | Changes to the documentation                                            | No release                              |
+| fix     | Resolving a bug                                                         | Release with **patch** version increase |
+| feat    | Adding a feature                                                        | Release with **minor** version increase |
 | perf    | *Never (due to the version tag action using this to trigger a release)* | Release with **major** version increase | 
 
 **scope** is optional, but it should be equal to the name of the main package affected by the change.
@@ -76,6 +76,10 @@ to reference GitHub issues that this commit reverts.
 The rest of the commit message is then used for this.
 
 ### Example of valid comments:
+
+```
+doc: explain the usage of the retrier
+```
 
 ```
 feat(breaker): add circuit breaker option
