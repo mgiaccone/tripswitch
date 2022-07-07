@@ -28,7 +28,7 @@ This is a list of useful Makefile targets used for development.
 
 ## Coding style
 
-The code follow the [Uber Go Style Guide](https://github.com/uber-go/guide/blob/master/style.md).
+The code follows the [Uber Go Style Guide](https://github.com/uber-go/guide/blob/master/style.md).
 
 ## Pull requests
 
