@@ -72,14 +72,14 @@ type notifyRecoverFunc func()
 type CircuitBreaker[T any] struct {
 	failCount           int32
 	failThreshold       int32
+	notifyStateChangeCh chan stateChangeEvent
 	state               CircuitState
 	successCount        int32
 	successThreshold    int32
-	waitInterval        time.Duration
-	notifyStateChangeCh chan stateChangeEvent
 	restoreCircuitCh    chan restoreCircuitEvent
 	retrier             Retrier[T]
 	stateChangeFunc     StateChangeFunc
+	waitInterval        time.Duration
 
 	// these are used as test hooks
 	notifyStateChangeFn notifyStateChangeFunc
@@ -95,7 +95,7 @@ func NewCircuitBreaker[T any](opts ...Option) *CircuitBreaker[T] {
 func NewCircuitBreakerWithRetrier[T any](retrier Retrier[T], opts ...Option) *CircuitBreaker[T] {
 	cfg := config{
 		stateChangeFunc: func(oldState, newState CircuitState) {
-			// nop
+			// nop by default
 		},
 		failThreshold:    _defaultFailThreshold,
 		successThreshold: _defaultSuccessThreshold,
@@ -121,7 +121,7 @@ func NewCircuitBreakerWithRetrier[T any](retrier Retrier[T], opts ...Option) *Ci
 	return &cb
 }
 
-// Do executes a function managed by the circuit breaker.
+// Do wraps a function execution with the circuit breaker.
 func (cb *CircuitBreaker[T]) Do(fn ProtectedFunc[T]) (res T, err error) {
 	err = ErrPanicRecovered
 	defer coreutil.RecoverPanic()

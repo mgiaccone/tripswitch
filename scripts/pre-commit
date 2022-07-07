@@ -1,4 +1,8 @@
 #!/bin/sh
 
-exec 1>&2
-make qa
+# run the linter and tests if a .go file was changed
+changes=$(git diff --name-only `git merge-base origin/main HEAD` | grep -ic '\.go')
+
+if [ ${changes} -gt 0 ]; then
+  make lint test
+fi

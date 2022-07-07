@@ -14,23 +14,23 @@ go get github.com/mgiaccone/tripswitch
 
 ## Circuit Breaker
 
+The complete documentation for the circuit breaker can be found [here](docs/circuitbreaker.md).
+
 ### Quick start
 
 ```
 TODO: add quick start code sample
 ```
-
-The complete documentation for the circuit breaker can be found [here](docs/circuitbreaker.md).
 
 ## Retrier
 
+The complete documentation for the retrier can be found [here](docs/retrier.md).
+
 ### Quick start
 
 ```
 TODO: add quick start code sample
 ```
-
-The complete documentation for the retrier can be found [here](docs/retrier.md).
 
 ## License
 
