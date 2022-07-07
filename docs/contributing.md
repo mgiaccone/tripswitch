@@ -39,6 +39,12 @@ The code follows the [Uber Go Style Guide](https://github.com/uber-go/guide/blob
 The repository is configured to enforce a linear history. Rebase is your friend and you can read more 
 about it [here](https://www.bitsnbites.eu/a-tidy-linear-git-history/#:~:text=A%20linear%20history%20is%20simply,branches%20with%20independent%20commit%20histories.).
 
+You can use the following script for convenience:
+
+```bash
+./scripts/rebase.sh
+```
+
 ### Commit comments
 
 As the pull request will be squash merged into the **main** branch, please make sure 
