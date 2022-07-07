@@ -34,6 +34,8 @@ TODO: add quick start code sample
 
 ## Contributing
 
+**Contributions will not be accepted until after the first release**
+
 Please make sure you read and follow the guidelines [here](docs/contributing.md).
 
 ## License
