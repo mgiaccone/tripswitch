@@ -47,7 +47,6 @@ linters:
   enable:
     - asciicheck
     - bidichk
-    - cyclop
     - deadcode
     - dogsled
     - durationcheck
