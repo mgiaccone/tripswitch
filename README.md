@@ -18,7 +18,7 @@ The complete documentation for the circuit breaker can be found [here](docs/circ
 
 ### Quick start
 
-```
+```go
 TODO: add quick start code sample
 ```
 
@@ -28,9 +28,13 @@ The complete documentation for the retrier can be found [here](docs/retrier.md).
 
 ### Quick start
 
-```
+```go
 TODO: add quick start code sample
 ```
+
+## Contributing
+
+Please make sure you read and follow the guidelines [here](docs/contributing.md).
 
 ## License
 
