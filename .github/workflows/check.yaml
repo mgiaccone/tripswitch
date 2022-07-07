@@ -3,7 +3,6 @@ on:
   pull_request:
     branches:
       - main
-  push:
 
 env:
   GO_VERSION: 1.18.x
