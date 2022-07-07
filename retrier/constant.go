@@ -11,6 +11,7 @@ import (
 // ConstantRetrier is an implementation of a retrier that will wait a constant amount of time
 // before retrying the execution up to the maximum amount of retries.
 type ConstantRetrier[T any] struct {
+	clock      coreutil.Clock
 	delay      time.Duration
 	maxRetries int
 }
@@ -27,6 +28,8 @@ func NewConstantRetrier[T any](delay time.Duration, maxRetries int) *ConstantRet
 func (r *ConstantRetrier[T]) Do(fn ProtectedFunc[T]) (res T, err error) {
 	err = ErrPanicRecovered
 	defer coreutil.RecoverPanic()
+
+	_ = r.clock
 
 	// TODO: missing implementation
 
