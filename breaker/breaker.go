@@ -19,7 +19,7 @@ var (
 	ErrCircuitOpen = errors.New("circuit open")
 
 	// ErrPanicRecovered is a panic recovered error.
-	ErrPanicRecovered = errors.New("panic recovered")
+	ErrPanicRecovered = coreutil.ErrPanicRecovered
 )
 
 // ProtectedFunc represents the function to be protected by the circuit breaker.
@@ -87,12 +87,12 @@ type CircuitBreaker[T any] struct {
 }
 
 // NewCircuitBreaker creates a new instance of a circuit breaker.
-func NewCircuitBreaker[T any](opts ...CircuitBreakeOption) *CircuitBreaker[T] {
+func NewCircuitBreaker[T any](opts ...Option) *CircuitBreaker[T] {
 	return NewCircuitBreakerWithRetrier[T](&nopRetrier[T]{}, opts...)
 }
 
 // NewCircuitBreakerWithRetrier creates a new instance of a circuit breaker .
-func NewCircuitBreakerWithRetrier[T any](retrier Retrier[T], opts ...CircuitBreakeOption) *CircuitBreaker[T] {
+func NewCircuitBreakerWithRetrier[T any](retrier Retrier[T], opts ...Option) *CircuitBreaker[T] {
 	cfg := config{
 		stateChangeFunc: func(oldState, newState CircuitState) {
 			// nop

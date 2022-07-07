@@ -12,7 +12,7 @@ import (
 
 func TestNewCircuitBreaker(t *testing.T) {
 	type args struct {
-		opts []CircuitBreakeOption
+		opts []Option
 	}
 
 	tests := []struct {
@@ -38,7 +38,7 @@ func TestNewCircuitBreaker(t *testing.T) {
 		{
 			name: "success with options",
 			args: args{
-				opts: []CircuitBreakeOption{
+				opts: []Option{
 					WithFailThreshold(10),
 					WithSuccessThreshold(99),
 				},
@@ -117,7 +117,7 @@ func TestCircuitBreaker_Do(t *testing.T) {
 				t.Logf("state change [old = %s, new = %s]", oldState, newState)
 			}
 
-			opts := []CircuitBreakeOption{
+			opts := []Option{
 				WithFailThreshold(2),
 				WithSuccessThreshold(2),
 				WithWaitInterval(500 * time.Millisecond),

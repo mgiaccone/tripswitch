@@ -4,9 +4,8 @@ import (
 	"time"
 )
 
-// CircuitBreakeOption represents a functional option applicable
-// to a circuit breaker.
-type CircuitBreakeOption func(cfg *config)
+// Option represents a functional option applicable to a circuit breaker.
+type Option func(cfg *config)
 
 type config struct {
 	failThreshold    int32
@@ -15,7 +14,7 @@ type config struct {
 	waitInterval     time.Duration
 }
 
-func (c *config) applyOpts(opts ...CircuitBreakeOption) {
+func (c *config) applyOpts(opts ...Option) {
 	for _, apply := range opts {
 		apply(c)
 	}
@@ -23,7 +22,7 @@ func (c *config) applyOpts(opts ...CircuitBreakeOption) {
 
 // WithFailThreshold overrides the default value for the number of failes
 // executions required to trip the circuit breaker to its CircuitOpen state.
-func WithFailThreshold(threshold int) CircuitBreakeOption {
+func WithFailThreshold(threshold int) Option {
 	return func(cfg *config) {
 		cfg.failThreshold = int32(threshold)
 	}
@@ -31,7 +30,7 @@ func WithFailThreshold(threshold int) CircuitBreakeOption {
 
 // WithStateChangeFunc attaches a function that will receive notifications
 // of circuit breaker state changes.
-func WithStateChangeFunc(fn StateChangeFunc) CircuitBreakeOption {
+func WithStateChangeFunc(fn StateChangeFunc) Option {
 	return func(cfg *config) {
 		cfg.stateChangeFunc = fn
 	}
@@ -39,7 +38,7 @@ func WithStateChangeFunc(fn StateChangeFunc) CircuitBreakeOption {
 
 // WithSuccessThreshold overrides the default value for the number of successful
 // executions required to restore the circuit breaker to its CircuitClosed state.
-func WithSuccessThreshold(threshold int) CircuitBreakeOption {
+func WithSuccessThreshold(threshold int) Option {
 	return func(cfg *config) {
 		cfg.successThreshold = int32(threshold)
 	}
@@ -47,7 +46,7 @@ func WithSuccessThreshold(threshold int) CircuitBreakeOption {
 
 // WithWaitInterval overrides the default value for the time the circuit breaker
 // will wait before entering the CircuitHalfOpen state.
-func WithWaitInterval(interval time.Duration) CircuitBreakeOption {
+func WithWaitInterval(interval time.Duration) Option {
 	return func(cfg *config) {
 		cfg.waitInterval = interval
 	}

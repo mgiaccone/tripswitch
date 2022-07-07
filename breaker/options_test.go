@@ -17,7 +17,7 @@ import (
 // 		stateChangeFunc         StateChangeFunc
 // 	}
 // 	type args struct {
-// 		opts []CircuitBreakeOption
+// 		opts []Option
 // 	}
 // 	tests := []struct {
 // 		name    string

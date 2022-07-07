@@ -1,13 +1,14 @@
 package retrier
 
 import (
-	"errors"
 	"fmt"
+
+	"github.com/mgiaccone/tripswitch/internal/coreutil"
 )
 
 var (
 	// ErrPanicRecovered is a panic recovered error.
-	ErrPanicRecovered = errors.New("panic recovered")
+	ErrPanicRecovered = coreutil.ErrPanicRecovered
 )
 
 // ProtectedFunc represents the function to be protected by the circuit breaker.
