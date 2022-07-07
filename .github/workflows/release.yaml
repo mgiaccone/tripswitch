@@ -22,15 +22,10 @@ jobs:
           files: |
             **/*.go
         id: changed-go-files
-      - name: List all changed Go files
-        run: |
-          for file in ${{ steps.changed-go-files.outputs.all_changed_files }}; do
-            echo "changed file: $file"
-          done
       - name: Skip release
         run: |
           echo "No source code changes, skipping release"
-        if: steps.changed-go-files.outputs.files_changed == 'false'
+        if: steps.changed-go-files.outputs.files_changed != 'true'
       - name: Setup Go build environment
         uses: actions/setup-go@v3
         with:
