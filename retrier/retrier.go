@@ -1,4 +1,4 @@
-package tripswitch
+package retrier
 
 import (
 	"errors"
@@ -6,9 +6,12 @@ import (
 )
 
 var (
-	// ErrCircuitOpen represents an open circuit error.
-	ErrCircuitOpen = errors.New("circuit open")
+	// ErrPanicRecovered is a panic recovered error.
+	ErrPanicRecovered = errors.New("panic recovered")
 )
+
+// ProtectedFunc represents the function to be protected by the circuit breaker.
+type ProtectedFunc[T any] func() (T, error)
 
 // Retriable is a short-hand function to wrap an error into a RetriableError.
 func Retriable(err error) error {

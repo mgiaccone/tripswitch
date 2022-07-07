@@ -1,4 +1,4 @@
-package tripswitch
+package breaker
 
 import (
 	"reflect"
@@ -17,7 +17,7 @@ import (
 // 		stateChangeFunc         StateChangeFunc
 // 	}
 // 	type args struct {
-// 		opts []CircuitOption
+// 		opts []CircuitBreakeOption
 // 	}
 // 	tests := []struct {
 // 		name    string
@@ -29,7 +29,7 @@ import (
 // 	}
 // 	for _, tt := range tests {
 // 		t.Run(tt.name, func(t *testing.T) {
-// 			c := &circuitConfig{
+// 			c := &config{
 // 				circuits:                tt.fields.circuits,
 // 				failThreshold:    tt.fields.failThreshold,
 // 				successThreshold: tt.fields.successThreshold,
@@ -44,7 +44,7 @@ import (
 // }
 
 func TestWithFailThreshold(t *testing.T) {
-	var cfg circuitConfig
+	var cfg config
 	want := 3
 	WithFailThreshold(want)(&cfg)
 	require.Equal(t, int32(want), cfg.failThreshold,
@@ -52,7 +52,7 @@ func TestWithFailThreshold(t *testing.T) {
 }
 
 func TestWithSuccessThreshold(t *testing.T) {
-	var cfg circuitConfig
+	var cfg config
 	want := 3
 	WithSuccessThreshold(want)(&cfg)
 	require.Equal(t, int32(want), cfg.successThreshold,
@@ -60,7 +60,7 @@ func TestWithSuccessThreshold(t *testing.T) {
 }
 
 func TestWithWaitInterval(t *testing.T) {
-	var cfg circuitConfig
+	var cfg config
 	want := 99 * time.Millisecond
 	WithWaitInterval(want)(&cfg)
 	require.Equal(t, want, cfg.waitInterval,
@@ -68,7 +68,7 @@ func TestWithWaitInterval(t *testing.T) {
 }
 
 func TestWithStateChangeFunc(t *testing.T) {
-	var cfg circuitConfig
+	var cfg config
 	want := func(oldState, newState CircuitState) {}
 	WithStateChangeFunc(want)(&cfg)
 	require.Equal(t, reflect.ValueOf(want).Pointer(), reflect.ValueOf(cfg.stateChangeFunc).Pointer(),

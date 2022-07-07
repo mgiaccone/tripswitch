@@ -20,7 +20,7 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: Restore dependency cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
@@ -33,18 +33,3 @@ jobs:
       - name: Run tests
         run: |
           make test
-
-#  tag:
-#    name: Tag
-#    runs-on: ubuntu-latest
-#    needs: [lint, test]
-#    if: ${{ github.ref == 'refs/heads/main' }}
-#    steps:
-#      - uses: actions/checkout@v2
-#        with:
-#          fetch-depth: '0'
-#      - uses: anothrNick/github-tag-action@1.36.0
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#          RELEASE_BRANCHES: main
-#          WITH_V: true

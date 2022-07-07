@@ -1,4 +1,4 @@
-package tripswitch
+package breaker
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 
 func TestNewCircuitBreaker(t *testing.T) {
 	type args struct {
-		opts []CircuitOption
+		opts []CircuitBreakeOption
 	}
 
 	tests := []struct {
@@ -38,7 +38,7 @@ func TestNewCircuitBreaker(t *testing.T) {
 		{
 			name: "success with options",
 			args: args{
-				opts: []CircuitOption{
+				opts: []CircuitBreakeOption{
 					WithFailThreshold(10),
 					WithSuccessThreshold(99),
 				},
@@ -117,7 +117,7 @@ func TestCircuitBreaker_Do(t *testing.T) {
 				t.Logf("state change [old = %s, new = %s]", oldState, newState)
 			}
 
-			opts := []CircuitOption{
+			opts := []CircuitBreakeOption{
 				WithFailThreshold(2),
 				WithSuccessThreshold(2),
 				WithWaitInterval(500 * time.Millisecond),
@@ -222,22 +222,22 @@ func TestCircuitBreaker_notifyStateChange(t *testing.T) {
 	require.Equal(t, wantNewState, got.newState, "notifyStateChange() - newState = %v, want = %v", got.newState, wantNewState)
 }
 
-func TestCircuitBreaker_scheduleRecover(t *testing.T) {
+func TestCircuitBreaker_scheduleRestore(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
-	recoverCh := make(chan recoverCircuitEvent)
+	restoreCh := make(chan restoreCircuitEvent)
 
 	cb := CircuitBreaker[any]{
-		recoverCircuitCh: recoverCh,
+		restoreCircuitCh: restoreCh,
 	}
 
-	go cb.scheduleRecover()
+	go cb.scheduleRestore()
 
 	select {
-	case <-recoverCh:
+	case <-restoreCh:
 	case <-ctx.Done():
-		require.NoError(t, ctx.Err(), "scheduleRecover() - err = %v, want no error", ctx.Err())
+		require.NoError(t, ctx.Err(), "scheduleRestore() - err = %v, want no error", ctx.Err())
 		return
 	}
 }
@@ -404,7 +404,7 @@ func TestCircuitBreaker_recordSuccess(t *testing.T) {
 	}
 }
 
-func Test_recoverCircuit(t *testing.T) {
+func Test_restoreCircuit(t *testing.T) {
 	tests := []struct {
 		name             string
 		state            CircuitState
@@ -416,7 +416,7 @@ func Test_recoverCircuit(t *testing.T) {
 		wantNotifyCount  int
 	}{
 		{
-			name:             "recover applied to closed circuit",
+			name:             "restore applied to closed circuit",
 			state:            CircuitClosed,
 			failCount:        1,
 			successCount:     2,
@@ -426,7 +426,7 @@ func Test_recoverCircuit(t *testing.T) {
 			wantNotifyCount:  0,
 		},
 		{
-			name:             "recover applied to half open circuit",
+			name:             "restore applied to half open circuit",
 			state:            CircuitHalfOpen,
 			failCount:        1,
 			successCount:     2,
@@ -436,7 +436,7 @@ func Test_recoverCircuit(t *testing.T) {
 			wantNotifyCount:  0,
 		},
 		{
-			name:             "recover applied to open circuit",
+			name:             "restore applied to open circuit",
 			state:            CircuitOpen,
 			failCount:        1,
 			successCount:     2,
@@ -464,19 +464,19 @@ func Test_recoverCircuit(t *testing.T) {
 			cb.notifyStateChangeFn = notifyFn
 
 			startTime := time.Now()
-			cb.recoverCircuit()
+			cb.restoreCircuit()
 			elapsed := time.Since(startTime)
 
 			require.GreaterOrEqual(t, elapsed, waitTime,
-				"recoverCircuit() - waitTime = %v, want >= %v", elapsed, waitTime)
+				"restoreCircuit() - waitTime = %v, want >= %v", elapsed, waitTime)
 			require.Equal(t, tt.wantState, cb.state,
-				"recoverCircuit() - state = %v, want = %v", cb.state, tt.wantState)
+				"restoreCircuit() - state = %v, want = %v", cb.state, tt.wantState)
 			require.Equal(t, tt.wantFailCount, cb.failCount,
-				"recoverCircuit() - failCount = %v, want = %v", cb.failCount, tt.wantFailCount)
+				"restoreCircuit() - failCount = %v, want = %v", cb.failCount, tt.wantFailCount)
 			require.Equal(t, tt.wantSuccessCount, cb.successCount,
-				"recoverCircuit() - successCount = %v, want = %v", cb.successCount, tt.wantSuccessCount)
+				"restoreCircuit() - successCount = %v, want = %v", cb.successCount, tt.wantSuccessCount)
 			require.Equal(t, tt.wantNotifyCount, notifyCount,
-				"recoverCircuit() - notifyCount = %v, want = %v", notifyCount, tt.wantNotifyCount)
+				"restoreCircuit() - notifyCount = %v, want = %v", notifyCount, tt.wantNotifyCount)
 		})
 	}
 }

@@ -1,8 +1,11 @@
-package tripswitch
+package breaker
 
 import (
+	"errors"
 	"sync/atomic"
 	"time"
+
+	"github.com/mgiaccone/tripswitch/internal/coreutil"
 )
 
 const (
@@ -10,6 +13,22 @@ const (
 	_defaultSuccessThreshold = int32(3)
 	_defaultWaitInterval     = 10 * time.Second
 )
+
+var (
+	// ErrCircuitOpen is an open circuit error.
+	ErrCircuitOpen = errors.New("circuit open")
+
+	// ErrPanicRecovered is a panic recovered error.
+	ErrPanicRecovered = errors.New("panic recovered")
+)
+
+// ProtectedFunc represents the function to be protected by the circuit breaker.
+type ProtectedFunc[T any] func() (T, error)
+
+// Retrier is the interface representing a retrier.
+type Retrier[T any] interface {
+	Do(fn ProtectedFunc[T]) (T, error)
+}
 
 // CircuitState represents the state of the circuit breaker.
 type CircuitState int32
@@ -30,15 +49,15 @@ func (s CircuitState) String() string {
 		return "half-open"
 	case CircuitOpen:
 		return "open"
-	default:
-		return "undefined"
 	}
+
+	return "undefined"
 }
 
 // StateChangeFunc represents the function to handle state change notifications.
 type StateChangeFunc func(oldState, newState CircuitState)
 
-type recoverCircuitEvent struct{}
+type restoreCircuitEvent struct{}
 
 type stateChangeEvent struct {
 	oldState CircuitState
@@ -58,7 +77,7 @@ type CircuitBreaker[T any] struct {
 	successThreshold    int32
 	waitInterval        time.Duration
 	notifyStateChangeCh chan stateChangeEvent
-	recoverCircuitCh    chan recoverCircuitEvent
+	restoreCircuitCh    chan restoreCircuitEvent
 	retrier             Retrier[T]
 	stateChangeFunc     StateChangeFunc
 
@@ -68,13 +87,16 @@ type CircuitBreaker[T any] struct {
 }
 
 // NewCircuitBreaker creates a new instance of a circuit breaker.
-func NewCircuitBreaker[T any](opts ...CircuitOption) *CircuitBreaker[T] {
-	return NewCircuitBreakerWithRetrier[T](NopRetrier[T](), opts...)
+func NewCircuitBreaker[T any](opts ...CircuitBreakeOption) *CircuitBreaker[T] {
+	return NewCircuitBreakerWithRetrier[T](&nopRetrier[T]{}, opts...)
 }
 
-func NewCircuitBreakerWithRetrier[T any](retrier Retrier[T], opts ...CircuitOption) *CircuitBreaker[T] {
-	cfg := circuitConfig{
-		stateChangeFunc:  func(oldState, newState CircuitState) {},
+// NewCircuitBreakerWithRetrier creates a new instance of a circuit breaker .
+func NewCircuitBreakerWithRetrier[T any](retrier Retrier[T], opts ...CircuitBreakeOption) *CircuitBreaker[T] {
+	cfg := config{
+		stateChangeFunc: func(oldState, newState CircuitState) {
+			// nop
+		},
 		failThreshold:    _defaultFailThreshold,
 		successThreshold: _defaultSuccessThreshold,
 		waitInterval:     _defaultWaitInterval,
@@ -84,14 +106,14 @@ func NewCircuitBreakerWithRetrier[T any](retrier Retrier[T], opts ...CircuitOpti
 	cb := CircuitBreaker[T]{
 		failThreshold:       cfg.failThreshold,
 		notifyStateChangeCh: make(chan stateChangeEvent),
-		recoverCircuitCh:    make(chan recoverCircuitEvent),
+		restoreCircuitCh:    make(chan restoreCircuitEvent),
 		retrier:             retrier,
 		state:               CircuitClosed,
 		stateChangeFunc:     cfg.stateChangeFunc,
 		successThreshold:    cfg.successThreshold,
 		waitInterval:        cfg.waitInterval,
 	}
-	cb.scheduleRecoverFn = cb.scheduleRecover
+	cb.scheduleRecoverFn = cb.scheduleRestore
 	cb.notifyStateChangeFn = cb.notifyStateChange
 
 	go cb.processEvents()
@@ -100,38 +122,23 @@ func NewCircuitBreakerWithRetrier[T any](retrier Retrier[T], opts ...CircuitOpti
 }
 
 // Do executes a function managed by the circuit breaker.
-func (cb *CircuitBreaker[T]) Do(fn ProtectedFunc[T]) (T, error) {
-	var zeroValue T
+func (cb *CircuitBreaker[T]) Do(fn ProtectedFunc[T]) (res T, err error) {
+	err = ErrPanicRecovered
+	defer coreutil.RecoverPanic()
 
-	// TODO(matteo): add panic recovery
-	/*
-		defer func() {
-			e := recover()
-			if e != nil {
-				panic(e)
-			}
-		}()
-	*/
-
-	// wrap function with the circuit breaker
-	execFn := func() (T, error) {
-		// fails immediately if the circuit state is CircuitOpen
-		if CircuitState(atomic.LoadInt32((*int32)(&cb.state))) == CircuitOpen {
-			return zeroValue, ErrCircuitOpen
-		}
-
-		res, err := wrapWithRetrier(cb.retrier, fn)()
-		if err != nil {
-			cb.recordFailure()
-			return res, err
-		}
-
-		cb.recordSuccess()
-
-		return res, err
+	// fails immediately if the circuit state is CircuitOpen
+	if CircuitState(atomic.LoadInt32((*int32)(&cb.state))) == CircuitOpen {
+		return res, ErrCircuitOpen
 	}
 
-	return execFn()
+	res, err = wrapWithRetrier(cb.retrier, fn)()
+	if err != nil {
+		cb.recordFailure()
+		return
+	}
+	cb.recordSuccess()
+
+	return
 }
 
 // State returns the current state of the circuit breaker.
@@ -145,8 +152,8 @@ func (cb *CircuitBreaker[T]) processEvents() {
 		select {
 		case msg := <-cb.notifyStateChangeCh:
 			cb.stateChangeFunc(msg.oldState, msg.newState)
-		case <-cb.recoverCircuitCh:
-			go cb.recoverCircuit()
+		case <-cb.restoreCircuitCh:
+			go cb.restoreCircuit()
 		}
 	}
 }
@@ -159,9 +166,9 @@ func (cb *CircuitBreaker[T]) notifyStateChange(oldState, newState CircuitState) 
 	}
 }
 
-// scheduleRecover publishes a circuit recover request.
-func (cb *CircuitBreaker[T]) scheduleRecover() {
-	cb.recoverCircuitCh <- recoverCircuitEvent{}
+// scheduleRestore publishes a circuit recover request.
+func (cb *CircuitBreaker[T]) scheduleRestore() {
+	cb.restoreCircuitCh <- restoreCircuitEvent{}
 }
 
 // recordFailure handles a failed function execution.
@@ -216,9 +223,9 @@ func (cb *CircuitBreaker[T]) recordSuccess() {
 	}
 }
 
-// recoverCircuit waits for the configured interval before attempting to reopen the circuit.
+// restoreCircuit waits for the configured interval before attempting to reopen the circuit.
 // If the current state is CircuitOpen, it sets a timer to setting the state to CircuitHalfOpen.
-func (cb *CircuitBreaker[T]) recoverCircuit() {
+func (cb *CircuitBreaker[T]) restoreCircuit() {
 	t := time.NewTimer(cb.waitInterval)
 	defer t.Stop()
 
@@ -231,6 +238,15 @@ func (cb *CircuitBreaker[T]) recoverCircuit() {
 		cb.notifyStateChangeFn(CircuitOpen, CircuitHalfOpen)
 	}
 	// TODO: update stats
+}
+
+type nopRetrier[T any] struct {
+}
+
+// Do implement the ProtectedFunc interface.
+// nolint:revive
+func (r *nopRetrier[T]) Do(fn ProtectedFunc[T]) (T, error) {
+	return fn()
 }
 
 func wrapWithRetrier[T any](r Retrier[T], fn ProtectedFunc[T]) ProtectedFunc[T] {

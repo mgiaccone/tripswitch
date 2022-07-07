@@ -14,9 +14,17 @@ errcheck:
     check-type-assertions: true
     check-blank: true
 
-gocritic:
-  disabled-checks:
-    - newDeref
+#gocritic:
+#  disabled-checks:
+#    - newDeref
+##  disabled-checks:
+##    -
+##  enabled-tags:
+##    - diagnostic
+##    - style
+##    - performance
+##    - experimental
+##    - opinionated
 
 gocognit:
   min-complexity: 10
