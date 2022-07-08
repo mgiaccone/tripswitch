@@ -1,8 +1,9 @@
 #!/bin/sh
 
 # run the linter and tests if a .go file was changed
-changes=$(git diff --name-only `git merge-base origin/main HEAD` | grep -ic '\.go')
+changes=$(git diff --name-only `git merge-base origin/main HEAD` | grep -c '\.go')
 
 if [ ${changes} -gt 0 ]; then
+  echo "Running pre-commit checks..."
   make lint test
 fi

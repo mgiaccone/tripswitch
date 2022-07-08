@@ -2,7 +2,10 @@
 
 echo "::echo::on"
 
+echo "::debug::Git log"
 git --no-pager log --decorate=short --pretty=oneline -n5
+
+echo "::debug::Git diff"
 git diff --name-only ${INPUT_BASE_SHA} ${INPUT_SHA}
 
 echo "::debug::Checking diff with previous commit for releasable file changes"
