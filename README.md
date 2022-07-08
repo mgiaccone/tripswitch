@@ -39,10 +39,24 @@ res, err := breaker.Do[int]("sample", func() (int, error) {
 
 **Use a named circuit breaker with custom configuration**
 ```go
-// set the configuration for the "sample" circuit
+// set the configuration for the "sample" circuit with a failure threshold of 5
 breaker.MustConfigure[int]("sample", breaker.WithFailThreshold(5))
 
 // use the previously configured "sample" circuit breaker
+res, err := breaker.Do[int]("sample", func() (int, error) {
+    // body of the protected function
+    return 1, nil
+})
+// handle error
+```
+
+**Override default options**
+
+```go
+// set the default wait interval to 10 seconds
+breaker.DefaultOptions(breaker.WithWaitInterval(10 * time.Second))
+
+// lazily create and use a "sample" circuit breaker using the overridden default configuration
 res, err := breaker.Do[int]("sample", func() (int, error) {
     // body of the protected function
     return 1, nil
