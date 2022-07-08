@@ -16,20 +16,19 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 2
-      - name: Get changed files
-        uses: tj-actions/changed-files@v23.1
-        with:
-          since_last_remote_commit: true
-          files: |
-            docs/*.*
-            **/*.go
-            go.*
-            README.md
-        id: changed-go-files
+      - name: Release check
+        run: |
+          ./github/scripts/releasecheck.sh
+        id: releasecheck
       - name: Skip release
         run: |
-          echo "No source code changes, skipping release"
-        if: steps.changed-go-files.outputs.files_changed != 'true'
+          echo "No releasable code changes, skipping release"
+        if: steps.releasecheck.outputs.changed == 'false'
+      - name: Do release
+        run: |
+          echo "Do release"
+        if: steps.releasecheck.outputs.changed == 'true'
+
 #      - name: Setup Go build environment
 #        uses: actions/setup-go@v3
 #        with:
