@@ -340,7 +340,7 @@ func TestCircuitBreaker_recordSuccess(t *testing.T) {
 			failCount:        1,
 			successCount:     2,
 			wantState:        CircuitClosed,
-			wantFailCount:    1,
+			wantFailCount:    0,
 			wantSuccessCount: 2,
 			wantNotifyCount:  0,
 		},

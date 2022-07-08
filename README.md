@@ -14,17 +14,45 @@ go get github.com/mgiaccone/tripswitch
 
 ## Circuit Breaker
 
-The complete documentation for the circuit breaker can be found [here](docs/circuitbreaker.md).
+The complete documentation can be found [here](docs/circuitbreaker.md).
 
-### Quick start
+### Default configuration
+
+| Property          | Value | Description                                                           |
+|-------------------|-------|-----------------------------------------------------------------------|
+| Failure threshold | 3     | Number of subsequent failures required to open the circuit            |
+| Success threshold | 3     | Number of subsequent successes required to close the circuit          |
+| Wait interval     | 30s   | Amount of time an open circuit will wait before attempting a recovery |
+
+### Basic usage
+
+**Use a named circuit breaker with default configuration**
 
 ```go
-TODO: add quick start code sample
+// lazily create and use a "sample" circuit breaker using the default configuration
+res, err := breaker.Do[int]("sample", func() (int, error) {
+    // body of the protected function
+    return 1, nil
+})
+// handle error
+```
+
+**Use a named circuit breaker with custom configuration**
+```go
+// set the configuration for the "sample" circuit
+breaker.MustConfigure[int]("sample", breaker.WithFailThreshold(5))
+
+// use the previously configured "sample" circuit breaker
+res, err := breaker.Do[int]("sample", func() (int, error) {
+    // body of the protected function
+    return 1, nil
+})
+// handle error
 ```
 
 ## Retrier
 
-The complete documentation for the retrier can be found [here](docs/retrier.md).
+The complete documentation can be found [here](docs/retrier.md).
 
 ### Quick start
 
