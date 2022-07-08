@@ -93,7 +93,10 @@ func NewCircuitBreaker[T any](opts ...Option) *CircuitBreaker[T] {
 
 // NewCircuitBreakerWithRetrier creates a new instance of a circuit breaker .
 func NewCircuitBreakerWithRetrier[T any](retrier Retrier[T], opts ...Option) *CircuitBreaker[T] {
-	cfg := newConfig(opts...)
+	cfgOpts := _defaultOpts
+	cfgOpts = append(cfgOpts, opts...)
+
+	cfg := newConfig(cfgOpts...)
 
 	cb := CircuitBreaker[T]{
 		failThreshold:       cfg.failThreshold,

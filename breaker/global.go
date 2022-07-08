@@ -17,16 +17,18 @@ var (
 )
 
 var (
-	// ErrRequiredName
+	// ErrRequiredName is returned when a circuit name is required.
 	ErrRequiredName = errors.New("missing circuit name")
 
-	// ErrRequiredRetrier
+	// ErrRequiredRetrier is returned when a retrier is required.
 	ErrRequiredRetrier = errors.New("missing retrier")
 
-	// ErrDuplicateCircuit
+	// ErrDuplicateCircuit is returned when attempting to configure
+	// a circuit that already exists.
 	ErrDuplicateCircuit = errors.New("duplicate circuit")
 
-	// ErrTypeMismatch
+	// ErrTypeMismatch is returned when a circuit configured for a type
+	// is used with a different generic type.
 	ErrTypeMismatch = errors.New("circuit breaker type mismatch")
 )
 
@@ -67,6 +69,11 @@ func ConfigureWithRetrier[T any](name string, retrier Retrier[T], opts ...Option
 	return nil
 }
 
+// DefaultOptions overrides the default options.
+func DefaultOptions(opts ...Option) {
+	_defaultOpts = opts
+}
+
 // MustConfigure sets custom options for a named circuit breaker.
 // It triggers a panic in case of error.
 func MustConfigure[T any](name string, opts ...Option) {
@@ -83,6 +90,7 @@ func MustWithRetrier[T any](name string, retrier Retrier[T], opts ...Option) {
 func Do[T any](name string, fn ProtectedFunc[T]) (res T, err error) {
 	cb, err := getOrCreateEntry[T](name)
 	if err != nil {
+		// nolint:gocritic
 		return *new(T), err
 	}
 
