@@ -18,7 +18,7 @@ jobs:
           fetch-depth: 2
       - name: Release check
         run: |
-          ./github/scripts/releasecheck.sh
+          .github/scripts/releasecheck.sh
         id: releasecheck
       - name: Skip release
         run: |
