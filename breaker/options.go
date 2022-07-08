@@ -14,6 +14,20 @@ type config struct {
 	waitInterval     time.Duration
 }
 
+func newConfig(opts ...Option) config {
+	cfg := config{
+		stateChangeFunc: func(oldState, newState CircuitState) {
+			// nop by default
+		},
+		failThreshold:    _defaultFailThreshold,
+		successThreshold: _defaultSuccessThreshold,
+		waitInterval:     _defaultWaitInterval,
+	}
+	cfg.applyOpts(opts...)
+
+	return cfg
+}
+
 func (c *config) applyOpts(opts ...Option) {
 	for _, apply := range opts {
 		apply(c)

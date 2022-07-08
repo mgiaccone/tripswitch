@@ -11,7 +11,7 @@ import (
 const (
 	_defaultFailThreshold    = int32(3)
 	_defaultSuccessThreshold = int32(3)
-	_defaultWaitInterval     = 10 * time.Second
+	_defaultWaitInterval     = 30 * time.Second
 )
 
 var (
@@ -93,15 +93,10 @@ func NewCircuitBreaker[T any](opts ...Option) *CircuitBreaker[T] {
 
 // NewCircuitBreakerWithRetrier creates a new instance of a circuit breaker .
 func NewCircuitBreakerWithRetrier[T any](retrier Retrier[T], opts ...Option) *CircuitBreaker[T] {
-	cfg := config{
-		stateChangeFunc: func(oldState, newState CircuitState) {
-			// nop by default
-		},
-		failThreshold:    _defaultFailThreshold,
-		successThreshold: _defaultSuccessThreshold,
-		waitInterval:     _defaultWaitInterval,
-	}
-	cfg.applyOpts(opts...)
+	cfgOpts := _defaultOpts
+	cfgOpts = append(cfgOpts, opts...)
+
+	cfg := newConfig(cfgOpts...)
 
 	cb := CircuitBreaker[T]{
 		failThreshold:       cfg.failThreshold,
@@ -131,7 +126,7 @@ func (cb *CircuitBreaker[T]) Do(fn ProtectedFunc[T]) (res T, err error) {
 		return res, ErrCircuitOpen
 	}
 
-	res, err = wrapWithRetrier(cb.retrier, fn)()
+	res, err = wrapRetrier(cb.retrier, fn)()
 	if err != nil {
 		cb.recordFailure()
 		return
@@ -208,6 +203,9 @@ func (cb *CircuitBreaker[T]) recordSuccess() {
 		// TODO: update stats
 	case CircuitClosed:
 		// TODO: update stats
+		if atomic.LoadInt32(&cb.failCount) > 0 {
+			atomic.StoreInt32(&cb.failCount, 0)
+		}
 	case CircuitHalfOpen:
 		// TODO: update stats
 		if atomic.AddInt32(&cb.successCount, 1) < cb.successThreshold {
@@ -240,6 +238,7 @@ func (cb *CircuitBreaker[T]) restoreCircuit() {
 	// TODO: update stats
 }
 
+// nopRetrier is a no operation implementation of a retrier.
 type nopRetrier[T any] struct {
 }
 
@@ -249,7 +248,8 @@ func (r *nopRetrier[T]) Do(fn ProtectedFunc[T]) (T, error) {
 	return fn()
 }
 
-func wrapWithRetrier[T any](r Retrier[T], fn ProtectedFunc[T]) ProtectedFunc[T] {
+// wrapRetrier is a convenience function to apply a retrier to a circuit breaker.
+func wrapRetrier[T any](r Retrier[T], fn ProtectedFunc[T]) ProtectedFunc[T] {
 	return func() (T, error) {
 		return r.Do(fn)
 	}
