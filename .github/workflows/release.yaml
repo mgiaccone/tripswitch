@@ -20,14 +20,13 @@ jobs:
         run: |
           .github/scripts/releasecheck.sh
         id: releasecheck
+      - name: Debug releasecheck
+        run: |
+          echo "Release: ${steps.releasecheck.outputs.changed}"
       - name: Skip release
         run: |
           echo "No releasable code changes, skipping release"
         if: steps.releasecheck.outputs.changed == 'false'
-      - name: Do release
-        run: |
-          echo "Do release"
-        if: steps.releasecheck.outputs.changed == 'true'
 
 #      - name: Setup Go build environment
 #        uses: actions/setup-go@v3
