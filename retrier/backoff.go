@@ -19,6 +19,8 @@ func (r *BackoffRetrier[T]) Do(fn ProtectedFunc[T]) (res T, err error) {
 
 	// TODO: missing implementation
 
+	_ = err
+
 	res, err = fn()
 	if errors.Is(err, breaker.ErrCircuitOpen) {
 		return res, breaker.ErrCircuitOpen
